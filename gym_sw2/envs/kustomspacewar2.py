@@ -5,7 +5,7 @@ from gym import spaces
 
 import spacewar2 as spacewar2
 
-# TODO: Consider converting into a vectorized env (stable baselines can run multiple at once. Speeding up training and making it more stable)
+# TODO: Consider converting into a vectorized env
 
 DEG2RAD = 57.29577951308232
 def anglediff(a, b):
@@ -48,8 +48,9 @@ def kust_track_angle_dist(x1, y1, x2, y2, h):
 
 
 class KustomSpacewarEnv(spacewar2.SpacewarEnv):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, kustom_reward=None, *args, **kwargs):
         super(KustomSpacewarEnv, self).__init__(*args, **kwargs)
+        self.kustom_reward = kustom_reward
         self.episodes = 0
         self.sp_policy = None
         self.p2_policy = None
@@ -75,13 +76,16 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
     def step(self, action):
         if self.twoplayers:
             if self.p2_policy is None:
-                raise Error("Need to initialize other player first by giving env a self play policy object and resetting it. Try using the env and model builder")
+                raise ValueError("Need to initialize other player first by giving env a self play policy object and resetting it. Try using the env and model builder")
             p2_state = self.convert_observation(self.reverse_players(self.state))
             p2_action = self.p2_policy.predict(p2_state)[0]
             combined_action = np.stack([action[0], p2_action[0]], axis=0) # two outputs from auto built networks, ignore one...
             state, reward, done, _ = super(KustomSpacewarEnv, self).step(combined_action)
+            action = action[0]
         else:
             state, reward, done, _ = super(KustomSpacewarEnv, self).step(action)
+        if self.kustom_reward is not None:
+            reward = self.kustom_reward(action, state, reward, done)
         return self.convert_observation(state), reward, done, {}
 
     def reset(self):
@@ -93,7 +97,7 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
         return self.convert_observation(new_state)
 
     def reverse_players(self, state):
-        reversed_state = np.zeros(len(state))
+        reversed_state = np.zeros(state.shape)
         reversed_state[:7] += state[7:]
         reversed_state[7:] += state[:7]
         return reversed_state
