@@ -52,7 +52,7 @@ class SpacewarEnv(gym.Env):
                  p1fuel=250, p2fuel=250,
                  p1turn=2, p2turn=2, drag=0.,
                  cone_angle=5, cone_min=2, cone_max=100,
-                 max_life=25, kill_bonus=25, max_length=1000,
+                 max_life=3, kill_bonus=1, max_length=1000,
                  map_size=(600, 600), wrap=True,
                  gravity=1000., bh_rad=10,
                  debug=False, twoplayers=False):
@@ -147,6 +147,19 @@ class SpacewarEnv(gym.Env):
         """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+    def testconewrap(self, x1, y1, x2, y2, h):
+
+        # x could be wrapped on the left, on the right, or not at all. Compute the three phantom x and y positions
+        xs = x1 + np.array((-2 * self.map_size[0], 0, 2 * self.map_size[0]))
+        ys = y1 + np.array((-2 * self.map_size[1], 0, 2 * self.map_size[1]))
+
+        # pick the right x and y position. Assumes that self.cone_max < min(self.map_size)
+        x = xs[np.argmin(np.abs(xs - x2))]
+        y = ys[np.argmin(np.abs(ys - y2))]
+
+        return self.testcone(x, y, x2, y2, h)
+
 
     def testcone(self, x1, y1, x2, y2, h):
         """
@@ -276,7 +289,7 @@ class SpacewarEnv(gym.Env):
 
         prev_score = self.compute_score(p1lf, p2lf)
 
-        if self.testcone(p1x, p1y, p2x, p2y, p1h):
+        if self.testconewrap(p1x, p1y, p2x, p2y, p1h):
             # reward += 1
             # print('Pos Reward!')
             p2lf -= 1
@@ -284,7 +297,7 @@ class SpacewarEnv(gym.Env):
                 p2lf = 0
                 # p1sc = self.max_score + self.kill_bonus
                 done = True
-        if self.testcone(p2x, p2y, p1x, p1y, p2h):
+        if self.testconewrap(p2x, p2y, p1x, p1y, p2h):
             # reward -= 1
             # print('Neg Reward!')
             p1lf -= 1
@@ -312,7 +325,8 @@ class SpacewarEnv(gym.Env):
         return np.array(self.state), reward, done, {}
 
     def compute_score(self, p1lf, p2lf):
-        score = p1lf - p2lf
+        # score = p1lf - p2lf
+        score = 0
         if p2lf == 0:
             score += self.kill_bonus
         if p1lf == 0:
