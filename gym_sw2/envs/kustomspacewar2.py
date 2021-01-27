@@ -29,22 +29,22 @@ def kust_track_angle_dist(x1, y1, x2, y2, h):
     deltay = y2 - y1
 
     if deltax > math.pi:#these four if statements account for the shorter distance because of wrap
-        deltax -= 2*math.pi
-    if deltax < -1*math.pi:
-        deltax += 2*math.pi
+        deltax -= 2 * math.pi
+    if deltax < -1 * math.pi:
+        deltax += 2 * math.pi
     if deltay > math.pi:
-        deltay -= 2*math.pi
-    if deltay < -1*math.pi:
-        deltay += 2*math.pi
+        deltay -= 2 * math.pi
+    if deltay < -1 * math.pi:
+        deltay += 2 * math.pi
 
     #print('x dif: ',deltax,'\ny dif: ',deltay)
-    theeta = np.arctan2(deltay,deltax)
+    theeta = np.arctan2(deltay, deltax)
     #print('angle between them is ',theeta*180/math.pi)
-    dist = (deltax**2+deltay**2)**.5#2pi-dist or dist, whatever is smaller bc of wraparound
-    angle = anglediff(theeta,h*math.pi/180+math.pi/2)#the heading value is dumb and says 0 deg points up. We switch that to pointing right by adding pi/2
+    dist = (deltax**2 + deltay**2)**.5#2pi-dist or dist, whatever is smaller bc of wraparound
+    angle = anglediff(theeta, h * math.pi/180 + math.pi/2)#the heading value is dumb and says 0 deg points up. We switch that to pointing right by adding pi/2
     #print('modified heading: ',h+90)
     #print('heading adjust req = ',angle*180/math.pi)
-    return angle,dist
+    return angle, dist
 
 
 class KustomSpacewarEnv(spacewar2.SpacewarEnv):
@@ -54,11 +54,15 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
         self.episodes = 0
         self.sp_policy = None
         self.p2_policy = None
-        self.raw_shape_vec = np.array([ self.max_speed[0],  # p1 vx
+        self.raw_shape_vec = np.array([ self.map_size[0], # p1 x
+                                        self.map_size[1], # p1 y
+                                        self.max_speed[0],  # p1 vx
                                         self.max_speed[0],  # p1 vy
                                         180,  # p1 heading
                                         self.p1fuel,  # p1 fuel
                                         self.max_life,  # p1 life
+                                        self.map_size[0], # p2 x
+                                        self.map_size[1], # p2 y
                                         self.max_speed[0],  # p2 vx
                                         self.max_speed[0],  # p2 vy
                                         180,  # p2 heading
@@ -127,7 +131,7 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
         p2ycos = math.cos(p2y)  # theta is p2y
 
         # could also add health left to each player. Will skip for now
-        obs_and_compute = np.append(obs[2:7], obs[9:])
+        obs_and_compute = obs
         obs_and_compute = np.append(obs_and_compute, [p1xsin, p1xcos, p1ysin, p1ycos, p2xsin, p2xcos, p2ysin, p2ycos, ax1,ay1,ax2,ay2])
         angle, dist = kust_track_angle_dist(p1x, p1y, p2x, p2y, p1h)
         obs_and_compute = np.append(obs_and_compute, angle)
