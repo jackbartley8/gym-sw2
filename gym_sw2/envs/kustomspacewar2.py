@@ -44,7 +44,7 @@ def kust_track_angle_dist(x1, y1, x2, y2, h):
     angle = anglediff(theeta, h * math.pi/180 + math.pi/2)#the heading value is dumb and says 0 deg points up. We switch that to pointing right by adding pi/2
     #print('modified heading: ',h+90)
     #print('heading adjust req = ',angle*180/math.pi)
-    return angle, dist
+    return angle, dist#returned in radians
 
 
 class KustomSpacewarEnv(spacewar2.SpacewarEnv):
@@ -70,7 +70,7 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
                                         self.max_life,  # p2 life
                                         1,1,1,1,1,1,1,1, #all the sines and cosines that replace the agent locations
                                         self.gravity/(self.bh_rad+6)**2,self.gravity/(self.bh_rad+6)**2,self.gravity/(self.bh_rad+6)**2,self.gravity/(self.bh_rad+6)**2,#max for all accelerations, given a planet size of 6
-                                        180,  # rel-angle
+                                        math.pi,  # rel-angle
                                         (math.pi ** 2 + math.pi ** 2) ** (1 / 2)  # rel-dist, adjusted for wraparound
                                         ], dtype=np.float32)
 
@@ -132,9 +132,16 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
 
         # could also add health left to each player. Will skip for now
         obs_and_compute = obs
+        #print(len(obs_and_compute))
         obs_and_compute = np.append(obs_and_compute, [p1xsin, p1xcos, p1ysin, p1ycos, p2xsin, p2xcos, p2ysin, p2ycos, ax1,ay1,ax2,ay2])
+        #print(len(obs_and_compute))
         angle, dist = kust_track_angle_dist(p1x, p1y, p2x, p2y, p1h)
+        #print(len(obs_and_compute))
         obs_and_compute = np.append(obs_and_compute, angle)
+        #print(len(obs_and_compute))
         obs_and_compute = np.append(obs_and_compute, dist)
-        obs_and_compute = (obs_and_compute - (self.raw_shape_vec/2)) / self.raw_shape_vec
+        #print(len(obs_and_compute))
+        #print(len(obs_and_compute))#42
+        #print(len(self.raw_shape_vec))#28
+        obs_and_compute = obs_and_compute / self.raw_shape_vec
         return obs_and_compute
