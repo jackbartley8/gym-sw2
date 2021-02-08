@@ -4,6 +4,7 @@ import numpy as np
 from gym import spaces
 
 import spacewar2 as spacewar2
+from kustomstates import *
 
 # TODO: Consider converting into a vectorized env
 
@@ -46,10 +47,10 @@ def kust_track_angle_dist(x1, y1, x2, y2, h):
     #print('heading adjust req = ',angle*180/math.pi)
     return angle, dist#returned in radians
 
-
 class KustomSpacewarEnv(spacewar2.SpacewarEnv):
-    def __init__(self, kustom_reward=None, *args, **kwargs):
+    def __init__(self, kustom_reward=None, statemod=default, *args, **kwargs):
         super(KustomSpacewarEnv, self).__init__(*args, **kwargs)
+        self.statemod = statemod
         self.kustom_reward = kustom_reward
         self.episodes = 0
         self.sp_policy = None
@@ -74,14 +75,14 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
                                         (math.pi ** 2 + math.pi ** 2) ** (1 / 2)  # rel-dist, adjusted for wraparound
                                         ], dtype=np.float32)
 
-        space = np.ones(len(self.raw_shape_vec))
+        space = np.ones(len(self.statemod(self.raw_shape_vec)))
         self.observation_space = spaces.Box(-space, space, dtype=np.float32)
 
     def step(self, action):
         if self.twoplayers:
             if self.p2_policy is None:
                 raise ValueError("Need to initialize other player first by giving env a self play policy object and resetting it. Try using the env and model builder")
-            p2_state = self.convert_observation(self.reverse_players(self.state))
+            p2_state = self.statemod(self.convert_observation(self.reverse_players(self.state)))
             p2_action = self.p2_policy.predict(p2_state)[0]
             combined_action = np.stack([action[0], p2_action[0]], axis=0) # two outputs from auto built networks, ignore one...
             state, reward, done, _ = super(KustomSpacewarEnv, self).step(combined_action)
@@ -90,7 +91,7 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
             state, reward, done, _ = super(KustomSpacewarEnv, self).step(action)
         if self.kustom_reward is not None:
             reward = self.kustom_reward(action, state, reward, done)
-        return self.convert_observation(state), reward, done, {}
+        return self.statemod(self.convert_observation(state)), reward, done, {}
 
     def reset(self):
         self.episodes += 1
@@ -98,7 +99,7 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
             if self.sp_policy is not None:
                 self.p2_policy = self.sp_policy.sample_policies(1)[0]
         new_state = super(KustomSpacewarEnv, self).reset()
-        return self.convert_observation(new_state)
+        return self.statemod(self.convert_observation(new_state))
 
     def reverse_players(self, state):
         reversed_state = np.zeros(state.shape)
@@ -132,16 +133,13 @@ class KustomSpacewarEnv(spacewar2.SpacewarEnv):
 
         # could also add health left to each player. Will skip for now
         obs_and_compute = obs
-        #print(len(obs_and_compute))
         obs_and_compute = np.append(obs_and_compute, [p1xsin, p1xcos, p1ysin, p1ycos, p2xsin, p2xcos, p2ysin, p2ycos, ax1,ay1,ax2,ay2])
-        #print(len(obs_and_compute))
         angle, dist = kust_track_angle_dist(p1x, p1y, p2x, p2y, p1h)
-        #print(len(obs_and_compute))
         obs_and_compute = np.append(obs_and_compute, angle)
-        #print(len(obs_and_compute))
         obs_and_compute = np.append(obs_and_compute, dist)
-        #print(len(obs_and_compute))
-        #print(len(obs_and_compute))#42
-        #print(len(self.raw_shape_vec))#28
         obs_and_compute = obs_and_compute / self.raw_shape_vec
+        #print(obs_and_compute)
+        assert all([abs(value)<=1 for value in obs_and_compute[np.r_[:-6,-2:]]])#ensures nothing greater than 1. Everthing should be clipped. Exception is the accelerations, because when they crash, they can reach infinity
         return obs_and_compute
+
+
